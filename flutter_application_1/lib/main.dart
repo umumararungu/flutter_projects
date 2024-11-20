@@ -1,115 +1,143 @@
 import 'package:flutter/material.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 void main() {
-  runApp(const TemperatureConverterApp());
+  runApp(const MyApp());
 }
 
-class TemperatureConverterApp extends StatelessWidget {
-  const TemperatureConverterApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Temperature Converter',
+      title: 'Flutter Calendar',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.purple,
       ),
-      home: const TemperatureConverterScreen(),
+      home: CalendarPage(),
     );
   }
 }
 
-class TemperatureConverterScreen extends StatefulWidget {
-  const TemperatureConverterScreen({super.key});
+class CalendarPage extends StatefulWidget {
+  const CalendarPage({super.key});
 
   @override
-
-  _TemperatureConverterScreenState createState() => _TemperatureConverterScreenState();
+  // ignore: library_private_types_in_public_api
+  _CalendarPageState createState() => _CalendarPageState();
 }
 
-class _TemperatureConverterScreenState extends State<TemperatureConverterScreen> {
-  String? selectedConversion;
-  final TextEditingController tempController = TextEditingController();
-  String conversionHistory = '';
-  String result = '';
+class _CalendarPageState extends State<CalendarPage> {
+  late final ValueNotifier<List<Event>> _selectedEvents;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
 
-  void convertTemperature() {
-    double inputTemp = double.tryParse(tempController.text) ?? 0.0;
-    double convertedTemp;
+  // Map to store events for different days
+  final Map<DateTime, List<Event>> _events = {};
 
-    if (selectedConversion == 'FtoC') {
-      convertedTemp = (inputTemp - 32) * 5 / 9;
-      result = '${inputTemp.toStringAsFixed(1)} °F => ${convertedTemp.toStringAsFixed(2)} °C';
-    } else if (selectedConversion == 'CtoF') {
-      convertedTemp = (inputTemp * 9 / 5) + 32;
-      result = '${inputTemp.toStringAsFixed(1)} °C => ${convertedTemp.toStringAsFixed(2)} °F';
+  @override
+  void initState() {
+    super.initState();
+    // Populate the map with some sample events
+    _events[DateTime.now()] = [Event("Today’s Event")];
+    _events[DateTime.now().add(const Duration(days: 1))] = [
+      Event("Tomorrow's Event")
+    ];
+    _selectedEvents = ValueNotifier(_getEventsForDay(_focusedDay));
+  }
+
+  List<Event> _getEventsForDay(DateTime day) {
+    return _events[day] ??
+        []; // return the events for the specific day or an empty list if none
+  }
+
+  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    if (!isSameDay(_selectedDay, selectedDay)) {
+      setState(() {
+        _selectedDay = selectedDay;
+        _focusedDay = focusedDay;
+        _selectedEvents.value = _getEventsForDay(selectedDay);
+      });
     }
-
-    setState(() {
-      conversionHistory += '$result\n';
-      tempController.clear();
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Temperature Converter'),
+        title: const Text('SheTech'),
+        titleTextStyle: const TextStyle(
+            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+        backgroundColor: const Color.fromARGB(255, 157, 78, 221),
+        actions: const [
+          Icon(Icons.person), // Icon representing user
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: tempController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Enter Temperature'),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Radio<String>(
-                  value: 'FtoC',
-                  groupValue: selectedConversion,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedConversion = value;
-                    });
-                  },
+      body: Column(
+        children: [
+          Container(
+            color: const Color.fromARGB(255, 208, 206, 230),
+            margin: const EdgeInsets.only(
+                top: 100, left: 20, right: 20, bottom: 20),
+            padding:const EdgeInsets.all(10),
+            child: TableCalendar<DateTime>(
+              firstDay: DateTime.utc(2010, 10, 16),
+              lastDay: DateTime.utc(2030, 3, 14),
+              focusedDay: _focusedDay,
+              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              onDaySelected: _onDaySelected,
+              eventLoader: (day) {
+                return [];
+              },
+              calendarStyle: CalendarStyle(
+                outsideDaysVisible: false,
+                selectedDecoration:const BoxDecoration(
+                  color: Colors.purple,
+                  shape: BoxShape.circle,
                 ),
-                const Text('Fahrenheit to Celsius'),
-                Radio<String>(
-                  value: 'CtoF',
-                  groupValue: selectedConversion,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedConversion = value;
-                    });
-                  },
+                todayDecoration: BoxDecoration(
+                  color: const Color.fromARGB(182, 101, 39, 176).withOpacity(0.5),
+                  shape: BoxShape.circle,
                 ),
-                const Text('Celsius to Fahrenheit'),
-              ],
+              ),
+              headerStyle:const HeaderStyle(
+                titleTextStyle: TextStyle(
+                  color: Color.fromARGB(255, 139, 69, 205),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
+              ),
+              
             ),
-            ElevatedButton(
-              onPressed: convertTemperature,
-              child: const Text('Convert'),
+          ),
+          const SizedBox(height: 8.0),
+          Container(
+            color: Colors
+                .blue, // Set the background color of the events list to blue
+            child: Expanded(
+              child: ValueListenableBuilder<List<Event>>(
+                valueListenable: _selectedEvents,
+                builder: (context, value, _) {
+                  return ListView.builder(
+                    itemCount: value.length,
+                    itemBuilder: (context, index) {
+                      return ListTile(title: Text(value[index].title));
+                    },
+                  );
+                },
+              ),
             ),
-            const SizedBox(height: 20),
-            Text(
-              'Result: $result',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'History:\n$conversionHistory',
-              style: const TextStyle(fontSize: 14),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
+
+class Event {
+  final String title;
+
+  Event(this.title);
+}
+ 
